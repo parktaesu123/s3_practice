@@ -23,7 +23,7 @@ import java.util.concurrent.CompletableFuture;
 
 @Service
 @RequiredArgsConstructor
-public class S3Service {
+public class S3AsyncService {
 
     @Value("${cloud.aws.s3.bucket}")
     private String bucket;
@@ -33,12 +33,11 @@ public class S3Service {
     private final Set<String> IMAGE_EXTENSIONS = Set.of("jpg", "jpeg", "png", "gif");
 
 
-    public CompletableFuture<String> uploadAsync(MultipartFile file) {
+    public CompletableFuture<String> uploadAsync(MultipartFile file) throws IOException {
+        String fileName = file.getOriginalFilename();
+        validate(fileName);
 
-        String s3FileName = file.getOriginalFilename();
-        validate(s3FileName);
-
-        String key = UUID.randomUUID() + "." + getExtension(s3FileName);
+        String key = UUID.randomUUID() + "." + getExtension(fileName);
 
         PutObjectRequest request = PutObjectRequest.builder()
                 .bucket(bucket)
@@ -46,20 +45,14 @@ public class S3Service {
                 .contentType(file.getContentType())
                 .build();
 
-        try {
-            CompletableFuture<PutObjectResponse> upload = s3AsyncClient.putObject(
-                    request,
-                    AsyncRequestBody.fromBytes(file.getBytes())
-            );
+        // 비동기적으로 파일 업로드
+        CompletableFuture<PutObjectResponse> uploadFuture = s3AsyncClient.putObject(
+                request,
+                AsyncRequestBody.fromBytes(file.getBytes())
+        );
 
-            return upload.thenApply(response -> getUrl(key))
-                    .exceptionally(ex -> {
-                        throw FileFailedException.EXCEPTION;
-                    });
-
-        } catch (IOException e) {
-            throw FileFailedException.EXCEPTION;
-        }
+        // 업로드가 완료되면 키를 반환
+        return uploadFuture.thenApply(response -> key);
     }
 
     public CompletableFuture<Void> deleteAsync(String imageUrl) {
@@ -98,8 +91,9 @@ public class S3Service {
         return fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();
     }
 
-    private String getUrl(String fileName) {
+    public String getUrl(String fileName) {
         return "https://" + bucket + ".s3.amazonaws.com/" + fileName;
     }
+
 
 }
