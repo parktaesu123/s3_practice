@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/feed")
@@ -20,10 +21,12 @@ public class FeedController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public void createFeed(@RequestBody @Valid FeedRequest request) {
-        createFeedService.createFeed(request);
+    public void createFeed(
+            @RequestPart("request") @Valid FeedRequest request,
+            @RequestPart(value = "image", required = false) MultipartFile image
+    ) {
+        createFeedService.createFeed(request, image);
     }
-
     @GetMapping("/{id}")
     public FeedResponse getFeed(@PathVariable Long id) {
         return queryFeedService.query(id);
@@ -31,7 +34,7 @@ public class FeedController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable Long id) {
-        deleteFeedService.delete(id);
+    public void delete(@PathVariable Long id, @RequestParam String imageUrl) {
+        deleteFeedService.delete(id, imageUrl);
     }
 }
