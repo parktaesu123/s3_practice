@@ -21,4 +21,6 @@ public class Feed {
 
     @Column(nullable = false)
     private String content;
+
+    private String imageUrl;
 }
